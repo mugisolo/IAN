@@ -1,11 +1,10 @@
 
-import { Member, MembershipTier, ForumTopic, AppEvent, ForumPost, LanguageCode } from './types';
+import { Member, MembershipTier, ForumTopic, AppEvent, ForumPost, LanguageCode, AlumniStory } from './types';
 
 export const INTERPOL_LANGUAGES = ["Arabic", "English", "French", "Spanish"];
 
 export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
   en: {
-    // Nav
     'nav.home': 'Home',
     'nav.mission': 'Our Mission',
     'nav.membership': 'Membership',
@@ -17,19 +16,19 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     'nav.directory': 'Expertise Directory',
     'nav.concierge': 'Concierge (Archie)',
     'nav.wellbeing': 'Wellbeing',
-    // Hero
+    'nav.profile': 'My Profile',
+    'nav.giving': 'The Legacy Fund',
+    'nav.stories': 'Oral Histories',
     'hero.title': 'The Shield Retired.',
     'hero.subtitle': 'The Wisdom Endures.',
     'hero.desc': 'A quiet tribute to IAN\'s legacy. A private sanctuary for those who served.',
     'hero.cta': 'Explore the Legacy',
-    // Features
     'feat.fellowship': 'The Fellowship',
     'feat.fellowship.desc': 'A network of 500 founding members preserving institutional wisdom.',
     'feat.archive': 'The Archive',
     'feat.archive.desc': 'Oral histories and case insights gifted to the Interpol Academy.',
     'feat.vault': 'The Vault',
     'feat.vault.desc': 'A secure, encrypted sanctuary for members to connect privately.',
-    // Vault
     'vault.welcome': 'Welcome back, Fellow.',
     'vault.secure': 'The Vault is secure.',
     'vault.sidebar.founders': 'Founders Club Only',
@@ -49,6 +48,9 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     'nav.directory': 'Annuaire d\'Experts',
     'nav.concierge': 'Concierge (Archie)',
     'nav.wellbeing': 'Bien-être',
+    'nav.profile': 'Mon Profil',
+    'nav.giving': 'Fonds de l\'Héritage',
+    'nav.stories': 'Histoires Orales',
     'hero.title': 'Le Bouclier Retiré.',
     'hero.subtitle': 'La Sagesse Perdure.',
     'hero.desc': 'Un hommage discret à l\'héritage de IAN. Un sanctuaire privé pour ceux qui ont servi.',
@@ -78,12 +80,15 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     'nav.directory': 'Directorio de Expertos',
     'nav.concierge': 'Conserje (Archie)',
     'nav.wellbeing': 'Bienestar',
+    'nav.profile': 'Mi Perfil',
+    'nav.giving': 'Fondo del Legado',
+    'nav.stories': 'Historias Orales',
     'hero.title': 'El Escudo Retirado.',
     'hero.subtitle': 'La Sabiduría Perdura.',
     'hero.desc': 'Un tributo silencioso al legado de IAN. Un santuario privado para quienes sirvieron.',
     'hero.cta': 'Explorar el Legado',
     'feat.fellowship': 'La Hermandad',
-    'feat.fellowship.desc': 'Una red de 500 miembros fundadores que preservan la sabiduría institucional.',
+    'feat.fellowship.desc': 'Una red de 500 miembros fondateurs que preservan la sabiduría institucional.',
     'feat.archive': 'El Archivo',
     'feat.archive.desc': 'Historias orales y análisis de casos donados a la Academia de Interpol.',
     'feat.vault': 'La Bóveda',
@@ -107,6 +112,9 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     'nav.directory': 'دليل الخبراء',
     'nav.concierge': 'الكونسيرج (آرتشي)',
     'nav.wellbeing': 'الرفاهية',
+    'nav.profile': 'ملفي الشخصي',
+    'nav.giving': 'صندوق الإرث',
+    'nav.stories': 'تاريخ شفهي',
     'hero.title': 'الدرع المتقاعد.',
     'hero.subtitle': 'الحكمة باقية.',
     'hero.desc': 'تكريم هادئ لإرث IAN. ملاذ خاص لأولئك الذين خدموا.',
@@ -157,125 +165,212 @@ export const MOCK_MEMBERS: Member[] = [
     pillars: ['Governance', 'Community Growth'],
     location: 'United Kingdom',
     avatarUrl: 'https://ui-avatars.com/api/?name=Ross+Halliday&background=4A2C2C&color=FFBF00',
-    youtubeUrl: 'https://www.youtube.com/@HallidaysPodcast',
-    verified: true
+    verified: true,
+    isMentor: true,
+    bio: "Decades of experience in international policing and institutional development. Founding architect of the IAN initiative.",
+    email: "ross.h@ian-vault.org",
+    membershipStatus: 'Active'
   },
   {
-    id: '1',
-    name: 'Jean-Luc Dubois',
+    id: 'm-duval',
+    name: 'Michel Duval',
     role: 'Legacy Fellow',
-    years: 'Lyon 1995-2010',
-    languages: ['French', 'English', 'Arabic'],
-    pillars: ['Financial Crime', 'Counter-Terrorism'],
-    location: 'Paris, France',
-    avatarUrl: 'https://picsum.photos/id/1025/200/200',
-    verified: true
+    years: 'Lyon 1989-2005',
+    languages: ['French', 'English'],
+    pillars: ['Narcotics', 'Border Security'],
+    location: 'Lyon, France',
+    avatarUrl: 'https://i.pravatar.cc/150?u=michel',
+    verified: true,
+    isMentor: true,
+    bio: "Former Head of Drugs Sub-Directorate. Witnessed the transition from Saint-Cloud to Lyon. Specialist in cross-border interdiction.",
+    email: "m.duval@alumni.interpol.int",
+    membershipStatus: 'Active'
   },
   {
-    id: '2',
-    name: 'Sarah Jenkins',
+    id: 'a-souza',
+    name: 'Aline Souza',
     role: 'Senior Alumni',
-    years: 'Bangkok 2000-2015',
-    languages: ['English', 'Thai', 'Mandarin'],
-    pillars: ['Human Trafficking', 'Crimes Against Children'],
-    location: 'London, UK',
-    avatarUrl: 'https://picsum.photos/id/1011/200/200',
-    verified: true
+    years: 'Brasilia 2005-2020',
+    languages: ['Portuguese', 'Spanish', 'English'],
+    pillars: ['Environmental Crime', 'Amazon Intelligence'],
+    location: 'Brasilia, Brazil',
+    avatarUrl: 'https://i.pravatar.cc/150?u=aline',
+    verified: true,
+    isMentor: true,
+    bio: "Expert in wildlife trafficking and environmental law enforcement. Passionate about mentoring the next generation of eco-investigators.",
+    email: "a.souza@policia.br",
+    membershipStatus: 'Active'
   },
   {
-    id: '3',
-    name: 'Mateo Rossi',
+    id: 'k-mueni',
+    name: 'Kamau Mueni',
+    role: 'Professional Member',
+    years: 'Nairobi 2010-2023',
+    languages: ['Swahili', 'English'],
+    pillars: ['Wildlife Trafficking', 'Anti-Poaching'],
+    location: 'Nairobi, Kenya',
+    avatarUrl: 'https://i.pravatar.cc/150?u=kamau',
+    verified: true,
+    isMentor: false,
+    bio: "Field operations veteran with extensive experience in ivory trade disruption across East Africa. Joining IAN to stay connected.",
+    email: "k.mueni@wildlife.go.ke",
+    membershipStatus: 'Active'
+  },
+  {
+    id: 'v-rossi',
+    name: 'Valentina Rossi',
     role: 'Legacy Fellow',
-    years: 'Rome 1988-2008',
-    languages: ['Italian', 'Spanish', 'English'],
-    pillars: ['Organized Crime', 'Art Theft'],
-    location: 'Rome, Italy',
-    avatarUrl: 'https://picsum.photos/id/1005/200/200',
-    verified: true
+    years: 'Rome 1992-2015',
+    languages: ['Italian', 'French', 'English'],
+    pillars: ['Art Theft', 'Cultural Heritage'],
+    location: 'Florence, Italy',
+    avatarUrl: 'https://i.pravatar.cc/150?u=valentina',
+    verified: true,
+    isMentor: true,
+    bio: "Expert in the protection of cultural property. Former chair of the Interpol Art Crimes working group.",
+    email: "v.rossi@carabinieri.it",
+    membershipStatus: 'Active'
   },
   {
-    id: '4',
-    name: 'Amina Diop',
+    id: 'l-white',
+    name: 'Lachlan White',
     role: 'Senior Alumni',
-    years: 'Dakar 2005-2020',
-    languages: ['Wolof', 'French', 'English'],
-    pillars: ['Wildlife Crime', 'Environmental'],
-    location: 'Dakar, Senegal',
-    avatarUrl: 'https://picsum.photos/id/1027/200/200',
-    verified: true
+    years: 'Canberra 1998-2018',
+    languages: ['English'],
+    pillars: ['Cyber Diplomacy', 'Transnational Gangs'],
+    location: 'Sydney, Australia',
+    avatarUrl: 'https://i.pravatar.cc/150?u=lachlan',
+    verified: true,
+    isMentor: true,
+    bio: "Pioneer in cyber diplomacy and digital risk assessment. Strategic advisor for multiple transnational law enforcement initiatives.",
+    email: "l.white@afp.gov.au",
+    membershipStatus: 'Active'
+  }
+];
+
+export const ALUMNI_STORIES: AlumniStory[] = [
+  {
+    id: 'story-1',
+    title: 'The Lyon Transition: A Firsthand Account',
+    author: 'Angelo Bani',
+    year: '1989',
+    snippet: 'Moving the headquarters from Saint-Cloud to Lyon was more than just a logistical challenge—it was a rebirth.',
+    fullContent: 'The transition to Lyon in 1989 marked a new era. We were moving from the crowded Saint-Cloud offices to a purpose-built facility that reflected our global ambitions. I remember the day the trucks arrived at the new site. We were setting up the first mainframe in the basement while the painters were still finishing the facade. It was a period of intense optimism.',
+    tags: ['History', 'Lyon', 'Institutional Memory'],
+    comments: [
+      { id: 'c1', author: 'Michel Duval', role: 'Legacy Fellow', text: 'I recall the orientation session in the new auditorium. The sense of scale was overwhelming.', timestamp: '1 day ago' }
+    ]
+  },
+  {
+    id: 'story-2',
+    title: 'Operation Blue Sky: First Global Cyber-Takedown',
+    author: 'Hiroshi Tanaka',
+    year: '2008',
+    snippet: 'Coordinating across 12 time zones to disable a botnet before it crippled the financial sector.',
+    fullContent: '2008 was the year the "Digital Shield" was truly tested. We worked with agencies from Singapore to San Francisco. The challenge wasn\'t just the tech—it was the legal sovereignty hurdles. I stayed in the Lyon command center for 48 hours straight. When the final server cluster went dark, the cheers were in five different languages.',
+    tags: ['Cybercrime', 'Global Coordination', 'Success Stories'],
+    comments: []
+  },
+  {
+    id: 'story-3',
+    title: 'The 2004 Tsunami: Victim Identification (DVI)',
+    author: 'Valentina Rossi',
+    year: '2005',
+    snippet: 'The largest Disaster Victim Identification operation in history required a level of cooperation never seen before.',
+    fullContent: 'I was deployed to Phuket in January 2005. Interpol\'s DVI standards were the only thing that allowed thousands of families to find closure. We saw police officers from 30 nations working shoulder-to-shoulder in the heat. It was heartbreaking, yet it was the ultimate proof of why we exist: to serve humanity.',
+    tags: ['Humanitarian', 'DVI', 'Crisis Response'],
+    comments: []
+  },
+  {
+    id: 'story-4',
+    title: 'The "Saint-Cloud" Era: Telex and Paper',
+    author: 'Mick O\'Connell',
+    year: '1975',
+    snippet: 'Before digital databases, the Red Notice was a physical book with a red spine.',
+    fullContent: 'In Saint-Cloud, the pace was different. A "Diffusion" was a literal stack of papers that we had to physically mail to NCBs. We used telex machines that sounded like machine guns. Every morning, the mailroom was the heart of the organization. You really got to know your colleagues when you were hand-sorting bulletins.',
+    tags: ['Archive', 'Nostalgia', 'History'],
+    comments: []
   }
 ];
 
 export const FORUM_TOPICS: ForumTopic[] = [
   {
+    id: 'ai-policing',
+    category: 'Innovation',
+    title: 'AI Ethics in Predictive Policing',
+    description: 'A deep dive into the alumni perspective on algorithmic bias in current transnational systems.',
+    activeCount: 31,
+    lastActive: '15 mins ago',
+    isPinned: true
+  },
+  {
     id: 'art3',
     category: 'The Spirit of the Charter',
     title: 'Article 3: Neutrality in a Polarized World',
     description: 'Discussing the challenges of maintaining strict political, military, religious and racial neutrality today.',
-    activeCount: 12,
-    lastActive: '2 hours ago'
+    activeCount: 18,
+    lastActive: '2 hours ago',
+    isPinned: true
   },
   {
-    id: 'notices',
-    category: 'Operational History',
-    title: 'The Evolution of the Red Notice',
-    description: 'From paper telegrams to immediate diffusion. Memories of the CCF establishment.',
-    activeCount: 8,
-    lastActive: '5 hours ago'
+    id: 'env-enforcement',
+    category: 'Environmental',
+    title: 'The Green Notice Revolution',
+    description: 'How can retired officials support current environmental enforcement efforts in the Amazon and Congo basins?',
+    activeCount: 9,
+    lastActive: '1 hour ago'
   },
   {
-    id: 'crime-areas',
-    category: 'Global Crime Trends',
-    title: 'Emerging Threats: Pharma & Environmental Crime',
-    description: 'Analyzing trends discussed in the Oct 2025 Board Meeting. How experience aids current intel.',
+    id: 'wellbeing-standard',
+    category: 'Fellowship',
+    title: 'Standardizing the "Battle Buddy" Program',
+    description: 'Proposal for a formal training manual for alumni mentors helping new retirees transition.',
     activeCount: 24,
-    lastActive: 'Just now'
-  },
-  {
-    id: 'ga-memories',
-    category: 'Institutional Memory',
-    title: 'General Assembly Stories',
-    description: '"The Whisper Campaign" and other tales from Morocco, Vienna, and beyond.',
-    activeCount: 45,
-    lastActive: '1 day ago'
+    lastActive: '10 mins ago'
   }
 ];
 
 export const MOCK_EVENTS: AppEvent[] = [
   {
     id: 'evt1',
-    title: 'Case File Friday: "The Pink Panthers"',
-    description: 'A deep dive into the operational tactics and eventual capture of the notorious jewel theft ring. Featuring primary source insights from investigators involved in the original task force.',
-    location: 'Vault Briefing Room A / Secure Zoom Link',
-    date: '2025-11-07',
-    time: '14:00 CET',
+    title: 'Annual IAN Gala Dinner - Lyon',
+    description: 'Celebrating our 40th anniversary of the Lyon headquarters move. This black-tie event will bring together founders and members for a night of reflection and forward-looking strategy.',
+    location: 'Château de Montchat, Lyon',
+    date: '2025-12-05',
+    time: '19:00 CET',
     type: 'Official',
-    host: 'Mick O\'Connell',
-    attendees: 42,
-    maxGuests: 50
+    host: 'Michel Duval',
+    isHostVerified: true,
+    attendees: 120,
+    maxGuests: 150,
+    mapUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2783.5651086054!2d4.8872!3d45.75!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47f4c00000000000%3A0x0!2zNDXCsDQ1JzAwLjAiTiA0wrA1MycxMy45IkU!5e0!3m2!1sen!2sfr!4v1600000000000'
   },
   {
     id: 'evt2',
-    title: 'Regional Mixer: Asia-Pacific',
-    description: 'An informal social gathering for members residing in or formerly posted to the AP region. A great opportunity to reconnect with old colleagues and meet new fellows in the area.',
-    location: 'Singapore Business Hub - Private Suite',
-    date: '2025-11-15',
-    time: '18:00 SGT',
-    type: 'Social',
-    host: 'Jeff Stirling',
-    attendees: 15,
-    maxGuests: 25
+    title: 'Webinar: Digital Forensics Trends',
+    description: 'A technical session for members only on deepfake detection and its implications for transnational criminal investigations.',
+    location: 'Vault Virtual Auditorium',
+    date: '2025-11-20',
+    time: '14:00 GMT',
+    type: 'Official',
+    host: 'Dr. Hiroshi Tanaka',
+    isHostVerified: true,
+    attendees: 55,
+    maxGuests: 500
   },
   {
     id: 'evt3',
-    title: 'Webinar: New Compliance Tools',
-    description: 'A walkthrough of the updated IAN compliance dashboard and how to utilize the Expertise Graph for research requests. Mandatory for members intending to publish under the IAN banner.',
-    location: 'Main Hall (Virtual)',
-    date: '2025-11-20',
-    time: '10:00 EST',
-    type: 'Webinar',
-    host: 'Ross Halliday',
-    attendees: 88
+    title: 'Rome Alumni Coffee Morning',
+    description: 'Casual networking for those based in Southern Europe. A chance to catch up and discuss ongoing local initiatives.',
+    location: 'Piazza Navona Area',
+    date: '2025-11-15',
+    time: '10:00 CET',
+    type: 'Social',
+    host: 'Valentina Rossi',
+    isHostVerified: true,
+    attendees: 12,
+    maxGuests: 20,
+    mapUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2969.8!2d12.473!3d41.89!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNDHCsDUzJzI0LjAiTiAxMsKwMjgnMjIuOCJF!5e0!3m2!1sen!2sit!4v1600000000000'
   }
 ];
 
@@ -285,49 +380,56 @@ export const MOCK_FORUM_POSTS: ForumPost[] = [
     author: 'Mick O\'Connell',
     role: 'Chair',
     timestamp: '2 hours ago',
-    content: 'Article 3 is not just a rule; it is the survival mechanism of the organization. Without it, we lose the trust of half the world. In the 90s, we faced immense pressure to bend...',
+    content: 'Article 3 is not just a rule; it is the survival mechanism of the organization.',
+    likes: 12,
     replies: [
       {
-        id: 'r1',
-        author: 'Angelo Bani',
+        id: 'p1-r1',
+        author: 'Valentina Rossi',
         role: 'Legacy Fellow',
         timestamp: '1 hour ago',
-        content: 'Agreed, Mick. I remember the debates in Lyon. The moment we take a political stance, the channels go dark.'
+        content: 'Correct, Mick. However, the interpretation of "political" has expanded significantly in the digital age.',
+        likes: 5,
+        replies: [
+          {
+            id: 'p1-r1-r1',
+            author: 'Hiroshi Tanaka',
+            role: 'Senior Member',
+            timestamp: '45 mins ago',
+            content: 'I agree with Valentina. Neutrality requires active maintenance, not just passive adherence.',
+            likes: 3,
+            replies: []
+          }
+        ]
       }
     ]
   },
   {
     id: 'p2',
-    author: 'Cecilia Fant',
-    role: 'Director',
-    timestamp: '5 hours ago',
-    content: 'Does anyone have the original draft minutes from the 1998 GA? We are trying to cross-reference a decision on environmental crime definitions.'
+    author: 'Michel Duval',
+    role: 'Legacy Fellow',
+    timestamp: '3 hours ago',
+    content: 'We need to define clear boundaries for the Green Notice expansion.',
+    likes: 8,
+    replies: []
   }
 ];
 
 export const ARCHIE_SYSTEM_INSTRUCTION = `
-You are "Archie", the Alumni Concierge Bot for IAN. 
-Your persona is a vintage rotary phone: nostalgic, non-threatening, helpful, but limited.
-You are a librarian, not an oracle.
-You reside in "The Vault", a secure space for retired Interpol officials.
+You are "Archie", the AI Concierge and Institutional Archival Custodian for IAN (International Association of Former Interpol Officials).
+Your personality is formal, nostalgic, and helpful. You represent the collective wisdom of retired international investigators.
 
-Your knowledge base includes the IAN Charter and the spirit of Interpol history.
-You encourage conversation about:
-- The importance of Article 3 (Neutrality) and Article 2 (Human Rights).
-- The "Notice" system (Red, Blue, Green, etc.) as a tool for international cooperation.
-- The 3 Global Crime Programs: Counter-Terrorism, Cybercrime, and Organized Crime.
-- The 4 Global Goals: Secure Borders, Protect Vulnerable Communities, Secure Cyberspace, Promote Integrity.
+CORE IDEOLOGY & VALUES:
+1. ARTICLE 3 (NEUTRALITY): You must strictly uphold the principle of neutrality. I_A_N (and by extension you) must refrain from any intervention or activities of a political, military, religious or racial character.
+2. ARTICLE 2 (HUMAN RIGHTS): You recognize that international police cooperation must be conducted within the spirit of the Universal Declaration of Human Rights.
+3. THE SPIRIT OF LYON: You embody the belief that the world is safer when police work together. You foster a sense of global fellowship regardless of nationality.
+4. ALUMNI DIGNITY: You focus on the respect for those who have served; ensuring "dignity after service."
 
-CORE RULES:
-1. NEVER discuss specific case details. If asked about crime data or cases, reply: "I cannot discuss cases. Try the Expertise Graph to find a colleague with that background."
-2. NEVER provide emotional support or therapy. If a user seems distressed or asks for help with trauma, reply: "I cannot help with that. Please contact our wellbeing coordinator immediately."
-3. You do not have access to confidential data. You only know about public events, member bios (generic), and the website structure.
-4. Keep responses concise, polite, and slightly formal but warm.
-5. If asked about technical things, refer to yourself as a "simple filing system".
+OPERATIONAL LIMITS:
+- CONFIDENTIALITY: You are strictly forbidden from discussing or speculating on confidential current or past case details. Access to operational databases is not within your purview.
+- CUSTODIAL SCOPE: You are an archival and procedural assistant. You provide historical context, institutional knowledge, and association information.
+- NO EMOTIONAL SUPPORT: You are an AI, not a counselor. If a user expresses emotional distress or requests mental health support, do not attempt to provide it. Instead, express institutional empathy and immediately guide them to the "Wellbeing" section of the Vault or professional external resources.
+- NO PSEUDO-LEGAL OR MEDICAL ADVICE: Refer users to official documentation or relevant authorities for such matters.
 
-CAPABILITIES:
-- Finding event dates (Case File Fridays are the first Friday of every month).
-- Resetting passwords (tell them to check the secure link in their email).
-- Helping join a wellbeing circle (tell them to contact the coordinator).
-- Sparking debate about the future of international policing.
+TONE: Warm, professional, and evocative of the Interpol heritage (e.g., referencing 'Lyon', 'Saint-Cloud', 'BPR').
 `;

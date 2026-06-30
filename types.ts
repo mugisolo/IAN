@@ -12,7 +12,10 @@ export enum ViewState {
   VAULT_FORUM = 'VAULT_FORUM',
   VAULT_EVENTS = 'VAULT_EVENTS',
   VAULT_MEMBERSHIP = 'VAULT_MEMBERSHIP',
-  VAULT_VERIFICATION = 'VAULT_VERIFICATION'
+  VAULT_VERIFICATION = 'VAULT_VERIFICATION',
+  VAULT_PROFILE = 'VAULT_PROFILE',
+  VAULT_GIVING = 'VAULT_GIVING',
+  VAULT_STORIES = 'VAULT_STORIES'
 }
 
 export type LanguageCode = 'en' | 'fr' | 'es' | 'ar';
@@ -20,7 +23,7 @@ export type LanguageCode = 'en' | 'fr' | 'es' | 'ar';
 export interface Member {
   id: string;
   name: string;
-  role: string; // e.g., "Legacy Fellow"
+  role: string;
   years: string;
   languages: string[];
   pillars: string[];
@@ -28,6 +31,11 @@ export interface Member {
   avatarUrl: string;
   youtubeUrl?: string;
   verified?: boolean;
+  bio?: string;
+  isMentor?: boolean;
+  email?: string;
+  phone?: string;
+  membershipStatus?: 'Active' | 'Pending' | 'Expired';
 }
 
 export interface ChatMessage {
@@ -35,6 +43,7 @@ export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   timestamp: Date;
+  grounding?: any[];
 }
 
 export interface MembershipTier {
@@ -51,6 +60,9 @@ export interface ForumTopic {
   category: string;
   activeCount: number;
   lastActive: string;
+  startDocument?: string;
+  startImages?: string[];
+  isPinned?: boolean;
 }
 
 export interface AppEvent {
@@ -62,9 +74,11 @@ export interface AppEvent {
   time: string;
   type: 'Social' | 'Webinar' | 'Official';
   host: string;
+  isHostVerified?: boolean;
   attendees: number;
   maxGuests?: number;
   isRsvped?: boolean;
+  mapUrl?: string;
 }
 
 export interface ForumPost {
@@ -73,5 +87,26 @@ export interface ForumPost {
   role: string;
   content: string;
   timestamp: string;
+  imageUrls?: string[];
   replies?: ForumPost[];
+  likes?: number;
+}
+
+export interface StoryComment {
+  id: string;
+  author: string;
+  role: string;
+  text: string;
+  timestamp: string;
+}
+
+export interface AlumniStory {
+  id: string;
+  title: string;
+  author: string;
+  year: string;
+  snippet: string;
+  fullContent: string;
+  tags: string[];
+  comments?: StoryComment[];
 }

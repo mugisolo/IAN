@@ -1,5 +1,6 @@
 {
-  "name": "I-AN Global: The Legacy Fellowship",
+  "name": "IAN: The Legacy Fellowship",
   "description": "A dual-facing platform for retired Interpol officials. The Veranda serves as a public tribute, while The Vault provides a secure, AI-assisted private fellowship network.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }

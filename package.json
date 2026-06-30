@@ -1,5 +1,5 @@
 {
-  "name": "i-an-global:-the-legacy-fellowship",
+  "name": "ian:-the-legacy-fellowship",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,10 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
     "@google/genai": "^1.30.0",
-    "lucide-react": "^0.554.0"
+    "lucide-react": "^0.554.0",
+    "motion": "^12.38.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
