@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { ARCHIE_SYSTEM_INSTRUCTION } from '../constants';
 
@@ -20,9 +19,18 @@ GUIDELINES:
 - Redirect off-topic or personal inquiries back to the professional scope defined above.
 `;
 
-export const getArchieStream = async (message: string, isPublic: boolean, history: {role: 'user' | 'model', text: string}[] = []) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const model = 'gemini-3-flash-preview';
+// Shared Gemini client utility on the server with User-Agent telemetry
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
+
+export const sendMessageToArchie = async (message: string, isPublic: boolean, history: {role: 'user' | 'model', text: string}[] = []) => {
+  const model = 'gemini-3.5-flash';
   
   const contents = history.map(h => ({
     role: h.role,
@@ -42,41 +50,43 @@ export const getArchieStream = async (message: string, isPublic: boolean, histor
   };
 
   try {
-    const result = await ai.models.generateContentStream({
+    const result = await ai.models.generateContent({
       model,
       contents,
       config,
     });
-    return result;
+    
+    return {
+      text: result.text || '',
+      groundingChunks: result.candidates?.[0]?.groundingMetadata?.groundingChunks || []
+    };
   } catch (error) {
-    console.error("Archie Streaming Error:", error);
+    console.error("Archie API Error:", error);
     throw error;
   }
 };
 
 export const analyzeResearchTopic = async (topicTitle: string, content: string) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3.5-flash',
       contents: `Perform a deep institutional analysis. TOPIC: ${topicTitle} CONTENT: ${content}`,
       config: {
-        thinkingConfig: { thinkingBudget: 16000 },
-        maxOutputTokens: 24000, 
+        thinkingConfig: { thinkingBudget: 1024 },
+        maxOutputTokens: 8000, 
         systemInstruction: "You are the IAN Vault Oracle. Provide high-level strategic reasoning."
       }
     });
-    return response.text;
+    return response.text || '';
   } catch (error) {
-    console.debug("Analysis Failed:", error);
+    console.error("Analysis Failed:", error);
     return "The analytical engine encountered a processing error.";
   }
 };
 
 export const vaultSearch = async (query: string, dataContext: string) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const model = 'gemini-3-flash-preview';
+    const model = 'gemini-3.5-flash';
     const response = await ai.models.generateContent({
       model,
       contents: `SEARCH QUERY: ${query}\n\nDATA CONTEXT (Directory & Archives):\n${dataContext}\n\nBased on the above context, provide an intelligent summary of relevant findings. If the query is a question, answer it. If it's a search for a specific expertise, list the most relevant people or stories and why they match.`,
@@ -84,7 +94,7 @@ export const vaultSearch = async (query: string, dataContext: string) => {
         systemInstruction: "You are the IAN Intelligence Assistant. You help members find relevant information in the collective archive and member directory. Be concise, professional, and secure."
       }
     });
-    return response.text;
+    return response.text || '';
   } catch (error) {
     console.error("Vault Search Error:", error);
     return "The search engine failed to retrieve results.";

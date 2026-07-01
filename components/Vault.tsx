@@ -3,14 +3,62 @@ import React, { useState, useEffect } from 'react';
 import { ViewState, Member, AppEvent, ForumPost, ForumTopic, LanguageCode, AlumniStory, StoryComment } from '../types';
 import { MOCK_MEMBERS, FORUM_TOPICS, MOCK_EVENTS, MOCK_FORUM_POSTS, MEMBERSHIP_TIERS, INTERPOL_LANGUAGES, ALUMNI_STORIES } from '../constants';
 import { Archie } from './Archie';
-import { analyzeResearchTopic, vaultSearch } from '../services/geminiService';
 import { 
   Users, Calendar, FileText, Heart, Search, 
   LogOut, ShieldCheck, MessageSquare, Globe,
   Youtube, ExternalLink, PlusCircle, ArrowLeft, BadgeCheck, CreditCard, Award, CheckCircle2, X, Upload, FileCheck, Lock, Paperclip, Sparkles, Loader2,
-  Clock, UserCircle, HandHeart, BookOpen, Settings, Check, MessageCircle, Send, Terminal, Pin, CalendarDays, List, ChevronRight, ThumbsUp
+  Clock, UserCircle, HandHeart, BookOpen, Settings, Check, MessageCircle, Send, Terminal, Pin, CalendarDays, List, ChevronRight, ThumbsUp, Trash, Trash2
 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { auth } from '../services/firebase.ts';
+import { 
+  createGoogleCalendarEvent, 
+  createGoogleDoc, 
+  listGoogleTasks, 
+  createGoogleTask, 
+  updateGoogleTaskStatus, 
+  deleteGoogleTask 
+} from '../services/workspace.ts';
+
+interface ForumCommentProps {
+  post: ForumPost;
+  depth?: number;
+}
+
+const ForumComment: React.FC<ForumCommentProps> = ({ post, depth = 0 }) => (
+  <div className={`border-l-2 border-stone-100 pl-4 py-4 ${depth > 0 ? 'mt-4' : 'border-b border-stone-50'}`}>
+    <div className="flex justify-between items-start mb-2">
+      <div className="flex items-center space-x-2">
+        <span className="text-xs font-bold text-vault-mahogany">{post.author}</span>
+        <span className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">[{post.role}]</span>
+      </div>
+      <span className="text-[10px] text-stone-400">{post.timestamp}</span>
+    </div>
+    <p className="text-stone-700 font-serif text-lg leading-relaxed mb-3">{post.content}</p>
+    {post.imageUrls && post.imageUrls.length > 0 && (
+      <div className="flex flex-wrap gap-2 mb-4">
+        {post.imageUrls.map((url, i) => (
+          <img key={i} src={url} alt="Post content" className="w-48 h-32 object-cover rounded-sm border border-stone-200" />
+        ))}
+      </div>
+    )}
+    <div className="flex items-center space-x-4 mt-3">
+       <button className="flex items-center space-x-1 text-[10px] uppercase font-bold text-stone-400 hover:text-vault-mahogany transition-colors">
+          <ThumbsUp className="w-3 h-3" /> <span>{post.likes || 0} Likes</span>
+       </button>
+       <button className="text-[10px] uppercase font-bold text-stone-400 hover:text-vault-mahogany transition-colors">
+          Reply
+       </button>
+    </div>
+    {post.replies && post.replies.length > 0 && (
+      <div className="ml-4">
+        {post.replies.map(reply => (
+          <ForumComment key={reply.id} post={reply} depth={depth + 1} />
+        ))}
+      </div>
+    )}
+  </div>
+);
 
 interface VaultProps {
   currentView: ViewState;
@@ -24,9 +72,67 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
   const { t, language, setLanguage } = useLanguage();
   
   const [selectedLanguage, setSelectedLanguage] = useState<string>('All');
-  const [events] = useState<AppEvent[]>(MOCK_EVENTS);
+  const [events, setEvents] = useState<AppEvent[]>(MOCK_EVENTS);
+  const [tasksList, setTasksList] = useState<any[]>([]);
   const [rsvpToast, setRsvpToast] = useState<string | null>(null);
-  
+  const [isExportingDoc, setIsExportingDoc] = useState(false);
+  const [exportedLink, setExportedLink] = useState<string | null>(null);
+  const [isSyncingCalendar, setIsSyncingCalendar] = useState<Record<string, boolean>>({});
+  const [dbUser, setDbUser] = useState<any>(null);
+
+  useEffect(() => {
+    const loadBackendData = async () => {
+      try {
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) return;
+
+        // Fetch User and sync state
+        const syncRes = await fetch('/api/auth/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          }
+        });
+        if (syncRes.ok) {
+          const u = await syncRes.json();
+          setDbUser(u);
+          if (u.avatarUrl) {
+            setCurrentUserAvatar(u.avatarUrl);
+          }
+        }
+
+        // Fetch Events
+        const eventsRes = await fetch('/api/events', {
+          headers: { 'Authorization': `Bearer ${idToken}` }
+        });
+        if (eventsRes.ok) {
+          const evData = await eventsRes.json();
+          setEvents(evData);
+        }
+
+        // Fetch Tasks
+        const tasksRes = await fetch('/api/tasks', {
+          headers: { 'Authorization': `Bearer ${idToken}` }
+        });
+        if (tasksRes.ok) {
+          const tData = await tasksRes.json();
+          setTasksList(tData);
+        }
+      } catch (err) {
+        console.error('Failed to load cloud backend data:', err);
+      }
+    };
+
+    // Listen for Auth changes and trigger fetch
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        loadBackendData();
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
@@ -46,11 +152,11 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
     const files = e.target.files;
     if (!files) return;
 
-    const loaders = Array.from(files).map(file => {
+    const loaders = Array.from(files).map((file: any) => {
       return new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onload = (ev) => resolve(ev.target?.result as string);
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(file as Blob);
       });
     });
 
@@ -96,7 +202,7 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
     
     const newPost: ForumPost = {
       id: `post-${Date.now()}`,
-      author: MOCK_MEMBERS[0].name,
+      author: auth.currentUser?.displayName || MOCK_MEMBERS[0].name,
       role: MOCK_MEMBERS[0].role,
       content: postContent,
       timestamp: 'Just now',
@@ -138,9 +244,36 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
       ${localStories.map(s => `${s.title} by ${s.author} (${s.year}): ${s.snippet}`).join('\n')}
     `;
     
-    const result = await vaultSearch(aiSearchQuery, context);
-    setAiSearchResults(result);
-    setIsAiSearching(false);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (idToken) {
+        headers['Authorization'] = `Bearer ${idToken}`;
+      }
+
+      const res = await fetch('/api/gemini/search', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          query: aiSearchQuery,
+          dataContext: context,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`API error: ${res.statusText}`);
+      }
+
+      const data = await res.json();
+      setAiSearchResults(data.text || 'No results found.');
+    } catch (err) {
+      console.error('Vault Search Error:', err);
+      setAiSearchResults('The search engine failed to retrieve results.');
+    } finally {
+      setIsAiSearching(false);
+    }
   };
 
   useEffect(() => {
@@ -153,9 +286,36 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
   const handleRunAiAnalysis = async () => {
     if (!activeTopic) return;
     setIsAnalyzing(true);
-    const analysis = await analyzeResearchTopic(activeTopic.title, activeTopic.description);
-    setAiAnalysis(analysis);
-    setIsAnalyzing(false);
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (idToken) {
+        headers['Authorization'] = `Bearer ${idToken}`;
+      }
+
+      const res = await fetch('/api/gemini/analyze', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          topicTitle: activeTopic.title,
+          content: activeTopic.description,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`API error: ${res.statusText}`);
+      }
+
+      const data = await res.json();
+      setAiAnalysis(data.text || 'No analysis available.');
+    } catch (err) {
+      console.error('Topic analysis error:', err);
+      setAiAnalysis('The analytical engine encountered a processing error.');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleConnect = (id: string) => {
@@ -163,9 +323,158 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
     setRsvpToast("Connection request transmitted.");
   };
 
-  const handleRsvp = (event: AppEvent) => {
-    setRsvpToast(`Securely registered for: ${event.title}`);
-    setSelectedEvent(null);
+  const handleRsvp = async (event: AppEvent) => {
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) {
+        setRsvpToast("Please login with Google to RSVP.");
+        return;
+      }
+
+      const res = await fetch(`/api/events/${event.id}/rsvp`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`
+        }
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        setRsvpToast(result.rsvped ? `RSVP registered for: ${event.title}` : `RSVP cancelled for: ${event.title}`);
+        
+        // Refresh events list
+        const eventsRes = await fetch('/api/events', {
+          headers: { 'Authorization': `Bearer ${idToken}` }
+        });
+        if (eventsRes.ok) {
+          const updatedEvents = await eventsRes.json();
+          setEvents(updatedEvents);
+        }
+        setSelectedEvent(null);
+      }
+    } catch (err) {
+      console.error('RSVP failed:', err);
+    }
+  };
+
+  const handleSyncToGoogleCalendar = async (event: AppEvent) => {
+    try {
+      setIsSyncingCalendar(prev => ({ ...prev, [event.id]: true }));
+      
+      const googleEvent = await createGoogleCalendarEvent({
+        title: `IAN Event: ${event.title}`,
+        description: event.description,
+        date: event.date,
+        time: event.time,
+      });
+
+      // Update local state with the Google Meet Link
+      setEvents(prev => prev.map(e => e.id === event.id ? { 
+        ...e, 
+        googleEventId: googleEvent.eventId, 
+        googleMeetLink: googleEvent.meetLink 
+      } : e));
+
+      setRsvpToast(`Event synced! Google Meet room created.`);
+    } catch (err) {
+      console.error('Failed to sync to Google Calendar:', err);
+      alert('Could not sync to Google Calendar. Ensure Google Calendar access permissions are granted.');
+    } finally {
+      setIsSyncingCalendar(prev => ({ ...prev, [event.id]: false }));
+    }
+  };
+
+  const handleAddTask = async (title: string) => {
+    if (!title.trim()) return;
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) return;
+
+      let googleTaskId = '';
+      try {
+        const googleTask = await createGoogleTask(title);
+        googleTaskId = googleTask.id;
+      } catch (gErr) {
+        console.warn('Google Tasks sync failed (saving locally only):', gErr);
+      }
+
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ title, googleTaskId })
+      });
+
+      if (res.ok) {
+        const newTask = await res.json();
+        setTasksList(prev => [...prev, newTask]);
+        setRsvpToast("Duty registered and synced to Google Tasks.");
+      }
+    } catch (err) {
+      console.error('Failed to add duty:', err);
+    }
+  };
+
+  const handleToggleTask = async (taskId: number, completed: boolean, googleTaskId?: string) => {
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) return;
+
+      if (googleTaskId) {
+        try {
+          await updateGoogleTaskStatus(googleTaskId, completed);
+        } catch (gErr) {
+          console.warn('Google Tasks sync update failed:', gErr);
+        }
+      }
+
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ completed })
+      });
+
+      if (res.ok) {
+        setTasksList(prev => prev.map(t => t.id === taskId ? { ...t, completed } : t));
+        setRsvpToast(completed ? "Duty marked completed!" : "Duty reopened.");
+      }
+    } catch (err) {
+      console.error('Failed to toggle duty:', err);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: number, googleTaskId?: string) => {
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) return;
+
+      if (googleTaskId) {
+        try {
+          await deleteGoogleTask(googleTaskId);
+        } catch (gErr) {
+          console.warn('Google Tasks deletion sync failed:', gErr);
+        }
+      }
+
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${idToken}`
+        }
+      });
+
+      if (res.ok) {
+        setTasksList(prev => prev.filter(t => t.id !== taskId));
+        setRsvpToast("Duty deleted successfully.");
+      }
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+    }
   };
 
   const handleAddAdvice = () => {
@@ -173,7 +482,7 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
 
     const newComment: StoryComment = {
       id: Date.now().toString(),
-      author: 'Ross Halliday',
+      author: auth.currentUser?.displayName || 'Ross Halliday',
       role: 'Founding Director',
       text: adviceInput,
       timestamp: 'Just now'
@@ -206,6 +515,7 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
           setActiveTopic(null);
           setAiAnalysis(null);
           setActiveStory(null);
+          setExportedLink(null);
         }}
         className={`w-full flex items-center space-x-3 px-6 py-4 transition-all duration-300 border-l-4 rtl:border-l-0 rtl:border-r-4 ${
           currentView === view 
@@ -222,7 +532,11 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
   const renderContent = () => {
     switch (currentView) {
       case ViewState.VAULT_PROFILE:
-        const userMember = MOCK_MEMBERS[0]; 
+        const userMember = {
+          ...MOCK_MEMBERS[0],
+          name: auth.currentUser?.displayName || MOCK_MEMBERS[0].name,
+          email: auth.currentUser?.email || MOCK_MEMBERS[0].email || 'ross.h@ian-vault.org',
+        }; 
         return (
           <div className="max-w-4xl mx-auto animate-fade-in-up">
              <div className="bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden mb-8">
@@ -357,11 +671,68 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
               </button>
               <div className="bg-vault-paper p-12 border-t-8 border-vault-mahogany shadow-2xl mb-12 relative overflow-hidden">
                  <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><ShieldCheck className="w-64 h-64 text-vault-mahogany" /></div>
-                 <div className="flex justify-between items-center mb-8 border-b border-vault-mahogany/10 pb-4">
+                 <div className="flex justify-between items-center mb-8 border-b border-vault-mahogany/10 pb-4 text-left">
                     <span className="text-vault-mahogany/60 font-serif italic text-sm">Case Record File #{activeStory.id}</span>
-                    <span className="text-xs uppercase font-bold text-vault-amber bg-vault-mahogany px-3 py-1">{activeStory.year}</span>
+                    <div className="flex items-center space-x-3">
+                       <button 
+                          onClick={async () => {
+                             try {
+                                setIsExportingDoc(true);
+                                setExportedLink(null);
+                                const doc = await createGoogleDoc({
+                                   title: `IAN Oral History: ${activeStory.title}`,
+                                   content: `IAN DEPOSITED STORY\nAuthor: ${activeStory.author}\nYear: ${activeStory.year}\n\n${activeStory.fullContent}\n\nInstitutional Comments:\n` + 
+                                      (activeStory.comments?.map(c => `[${c.author} - ${c.role}]: ${c.text}`).join('\n') || 'None')
+                                });
+                                setExportedLink(doc.htmlLink);
+                                setRsvpToast("Story successfully compiled to Google Docs.");
+                             } catch (err) {
+                                console.error(err);
+                                alert("Failed to export to Google Docs. Ensure Google Drive/Docs permissions are granted.");
+                             } finally {
+                                setIsExportingDoc(false);
+                             }
+                          }}
+                          disabled={isExportingDoc}
+                          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] uppercase font-bold tracking-widest px-4 py-2 border border-blue-700 disabled:opacity-50 transition-all font-sans"
+                       >
+                          {isExportingDoc ? (
+                             <>
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span>Exporting...</span>
+                             </>
+                          ) : (
+                             <>
+                                <FileText className="w-3 h-3" />
+                                <span>Export Google Doc</span>
+                             </>
+                          )}
+                       </button>
+                       <span className="text-xs uppercase font-bold text-vault-amber bg-vault-mahogany px-3 py-1">{activeStory.year}</span>
+                    </div>
                  </div>
-                 <h2 className="text-5xl font-serif text-vault-mahogany mb-8 leading-tight">{activeStory.title}</h2>
+
+                 {exportedLink && (
+                    <div className="mb-8 p-4 bg-blue-50 border-l-4 border-blue-600 flex items-center justify-between text-left animate-fade-in-up">
+                       <div className="flex items-center space-x-3">
+                          <FileCheck className="w-5 h-5 text-blue-600 shrink-0 animate-bounce" />
+                          <div>
+                             <p className="text-xs font-bold text-blue-900 uppercase tracking-wider">Google Document Created Successfully</p>
+                             <p className="text-[11px] text-blue-700 font-serif">You can access and edit this historical case file instantly in Google Docs.</p>
+                          </div>
+                       </div>
+                       <a 
+                          href={exportedLink} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-[9px] uppercase font-bold tracking-widest px-4 py-2 flex items-center space-x-1 font-sans shadow-sm"
+                       >
+                          <span>Open Doc</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                     </div>
+                  )}
+                  <h2 className="text-5xl font-serif text-vault-mahogany mb-8 leading-tight">{activeStory.title}</h2>
                  <p className="text-stone-500 text-xs uppercase tracking-[0.3em] mb-10 font-bold">DEPOSITED BY: {activeStory.author.toUpperCase()}</p>
                  <div className="prose prose-stone font-serif text-2xl leading-relaxed text-stone-800 mb-12 pb-12 border-b border-vault-mahogany/10 first-letter:text-7xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-vault-mahogany">
                    {activeStory.fullContent}
@@ -537,7 +908,7 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
               {t('vault.welcome')} 
               <span className="ml-3 md:ml-4 w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></span>
             </h1>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 text-left">
                <div onClick={() => onNavigate(ViewState.VAULT_ARCHIE)} className="bg-vault-mahogany text-vault-amber p-6 md:p-8 cursor-pointer hover:bg-stone-800 transition-all shadow-xl border-b-4 border-vault-amber group">
                  <Terminal className="w-8 h-8 md:w-10 md:h-10 mb-4 md:mb-6 group-hover:scale-110 transition-transform" />
                  <h3 className="text-lg md:text-xl font-serif mb-2">{t('vault.quick.archie')}</h3>
@@ -562,13 +933,15 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
             </div>
             
             <div className="mt-10 md:mt-16 grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-12">
-               <div className="space-y-6">
+               <div className="space-y-6 text-left">
                  <h2 className="text-xs uppercase tracking-[0.3em] font-bold text-stone-400 border-b pb-2">Upcoming Calendar</h2>
                  <div className="space-y-4">
                     {events.slice(0, 2).map(event => (
                       <div key={event.id} className="flex space-x-4 bg-white p-4 md:p-6 border border-stone-100 shadow-sm">
                         <div className="flex flex-col items-center justify-center bg-vault-mahogany text-vault-amber w-14 h-14 md:w-16 md:h-16 shrink-0">
-                           <span className="text-[10px] md:text-xs font-bold uppercase">{event.date.split('-')[1]}</span>
+                           <span className="text-[10px] md:text-xs font-bold uppercase">
+                             {event.date.split('-')[1] === '11' ? 'NOV' : event.date.split('-')[1] === '12' ? 'DEC' : 'EVENT'}
+                           </span>
                            <span className="text-lg md:text-xl font-serif font-bold">{event.date.split('-')[2]}</span>
                         </div>
                         <div className="flex-1">
@@ -580,19 +953,24 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
                     <button onClick={() => onNavigate(ViewState.VAULT_EVENTS)} className="text-[10px] uppercase tracking-widest font-bold text-stone-400 hover:text-vault-mahogany transition-colors">View All Events →</button>
                  </div>
                </div>
-               <div className="space-y-6">
+               <div className="space-y-6 text-left">
                  <h2 className="text-xs uppercase tracking-[0.3em] font-bold text-stone-400 border-b pb-2">Service Status</h2>
                  <div className="bg-vault-charcoal p-6 md:p-8 border-l-8 border-vault-amber text-stone-300">
                     <p className="text-[9px] md:text-xs uppercase tracking-[0.2em] mb-4 md:mb-6 opacity-60">Verified Credentials</p>
                     <div className="flex items-center space-x-3 md:space-x-4 mb-6 md:mb-8">
-                       {currentUserAvatar ? (
-                         <img src={currentUserAvatar} alt="User" className="w-12 h-12 md:w-14 md:h-14 object-cover rounded-full border-2 border-vault-amber" />
+                       {auth.currentUser?.photoURL || currentUserAvatar ? (
+                         <img src={auth.currentUser?.photoURL || currentUserAvatar} alt="User" className="w-12 h-12 md:w-14 md:h-14 object-cover rounded-full border-2 border-vault-amber" />
                        ) : (
-                         <div className="w-12 h-12 md:w-14 md:h-14 bg-vault-amber rounded-full flex items-center justify-center text-vault-mahogany font-serif text-xl md:text-2xl font-bold">RH</div>
+                         <div className="w-12 h-12 md:w-14 md:h-14 bg-vault-amber rounded-full flex items-center justify-center text-vault-mahogany font-serif text-xl md:text-2xl font-bold">
+                           {(auth.currentUser?.displayName || 'Ross Halliday').substring(0, 2).toUpperCase()}
+                         </div>
                        )}
                        <div>
-                          <h3 className="text-lg md:text-xl text-white font-serif">Ross Halliday</h3>
-                          <p className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] text-vault-amber font-bold">Legacy Fellow • Founding Director</p>
+                          <h3 className="text-lg md:text-xl text-white font-serif">{auth.currentUser?.displayName || 'Ross Halliday'}</h3>
+                          <p className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] text-vault-amber font-bold">
+                            {dbUser?.role || 'Professional Member'}
+                          </p>
+                          <p className="text-[8px] text-stone-400 tracking-wider truncate max-w-[200px]">{auth.currentUser?.email}</p>
                        </div>
                     </div>
                     <div className="space-y-2 md:space-y-3">
@@ -602,8 +980,69 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
                  </div>
                </div>
             </div>
-          </div>
-        );
+
+            {/* Google Tasks Integrated Fellowship Duties Card */}
+            <div className="mt-12 bg-white border border-stone-200 p-8 shadow-sm">
+               <div className="flex justify-between items-center mb-6 border-b pb-4">
+                  <div className="text-left">
+                     <h3 className="text-lg md:text-xl font-serif text-vault-mahogany font-bold uppercase tracking-widest">Fellowship Duties & Tasks</h3>
+                     <p className="text-xs text-stone-500 italic mt-1 font-serif">Logged in Cloud SQL and synchronized with Google Tasks.</p>
+                  </div>
+                  <FileCheck className="w-6 h-6 text-vault-amber animate-pulse" />
+               </div>
+
+               <div className="space-y-4 max-h-60 overflow-y-auto pr-2 mb-6 custom-scrollbar text-left">
+                  {tasksList.length > 0 ? (
+                     tasksList.map(task => (
+                        <div key={task.id} className="flex items-center justify-between p-3 bg-stone-50 hover:bg-stone-100/70 border-l-4 border-vault-amber transition-all">
+                           <div className="flex items-center space-x-3 text-left">
+                              <button 
+                                 onClick={() => handleToggleTask(task.id, !task.completed, task.googleTaskId)}
+                                 className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${task.completed ? 'bg-green-600 border-green-600 text-white' : 'border-stone-300 hover:border-vault-amber'}`}
+                              >
+                                 {task.completed && <Check className="w-3 h-3" />}
+                              </button>
+                              <span className={`text-sm font-serif ${task.completed ? 'line-through text-stone-400 italic' : 'text-stone-800'}`}>{task.title}</span>
+                           </div>
+                           <button 
+                              onClick={() => handleDeleteTask(task.id, task.googleTaskId)}
+                              className="p-1 hover:text-red-600 text-stone-400 transition-colors"
+                           >
+                              <Trash2 className="w-4 h-4" />
+                           </button>
+                        </div>
+                     ))
+                  ) : (
+                     <p className="text-stone-400 italic text-sm text-center py-6 font-serif">All fellowship duties are clear. Clearance verified.</p>
+                  )}
+               </div>
+
+               <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const target = e.currentTarget;
+                  const input = target.elements.namedItem('taskTitle') as HTMLInputElement;
+                  if (input.value.trim()) {
+                     handleAddTask(input.value);
+                     input.value = '';
+                  }
+               }} className="flex space-x-3">
+                  <input 
+                     type="text" 
+                     name="taskTitle"
+                     placeholder="Assign a new operational duty to track..."
+                     className="flex-grow p-3 bg-stone-50 border border-stone-200 text-xs font-serif italic focus:ring-1 focus:ring-vault-amber outline-none"
+                  />
+                  <button 
+                     type="submit"
+                     className="bg-vault-mahogany text-white hover:bg-stone-800 px-6 py-3 text-[10px] font-bold uppercase tracking-widest flex items-center space-x-2 transition-colors font-sans"
+                  >
+                     <PlusCircle className="w-4 h-4" />
+                     <span>Add Duty</span>
+                  </button>
+               </form>
+            </div>
+         </div>
+       );
 
       case ViewState.VAULT_ARCHIE:
         return (
@@ -617,41 +1056,6 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
         );
 
       case ViewState.VAULT_FORUM:
-        const ForumComment = ({ post, depth = 0 }: { post: ForumPost, depth?: number }) => (
-          <div className={`border-l-2 border-stone-100 pl-4 py-4 ${depth > 0 ? 'mt-4' : 'border-b border-stone-50'}`}>
-            <div className="flex justify-between items-start mb-2">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold text-vault-mahogany">{post.author}</span>
-                <span className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">[{post.role}]</span>
-              </div>
-              <span className="text-[10px] text-stone-400">{post.timestamp}</span>
-            </div>
-            <p className="text-stone-700 font-serif text-lg leading-relaxed mb-3">{post.content}</p>
-            {post.imageUrls && post.imageUrls.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {post.imageUrls.map((url, i) => (
-                  <img key={i} src={url} alt="Post content" className="w-48 h-32 object-cover rounded-sm border border-stone-200" />
-                ))}
-              </div>
-            )}
-            <div className="flex items-center space-x-4 mt-3">
-               <button className="flex items-center space-x-1 text-[10px] uppercase font-bold text-stone-400 hover:text-vault-mahogany transition-colors">
-                  <ThumbsUp className="w-3 h-3" /> <span>{post.likes || 0} Likes</span>
-               </button>
-               <button className="text-[10px] uppercase font-bold text-stone-400 hover:text-vault-mahogany transition-colors">
-                  Reply
-               </button>
-            </div>
-            {post.replies && post.replies.length > 0 && (
-              <div className="ml-4">
-                {post.replies.map(reply => (
-                  <ForumComment key={reply.id} post={reply} depth={depth + 1} />
-                ))}
-              </div>
-            )}
-          </div>
-        );
-
         if (activeTopic) {
           return (
             <div className="max-w-4xl mx-auto animate-fade-in-up text-stone-900">
@@ -1230,8 +1634,39 @@ export const Vault: React.FC<VaultProps> = ({ currentView, onNavigate, onLogout,
                         className="w-full bg-vault-mahogany text-vault-amber py-4 uppercase text-xs font-bold tracking-[0.2em] shadow-xl hover:bg-stone-800 transition-all active:scale-95 flex items-center justify-center space-x-2"
                        >
                           <Lock className="w-4 h-4" />
-                          <span>Secure My Attendance</span>
+                          <span>{events.find(e => e.id === selectedEvent.id)?.rsvped ? 'Cancel Attendance' : 'Secure My Attendance'}</span>
                        </button>
+
+                       {/* Google Calendar and Google Meet Synchronization */}
+                       {events.find(e => e.id === selectedEvent.id)?.googleMeetLink ? (
+                          <a 
+                             href={events.find(e => e.id === selectedEvent.id)?.googleMeetLink}
+                             target="_blank"
+                             rel="noopener noreferrer"
+                             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 uppercase text-xs font-bold tracking-[0.15em] shadow-xl transition-all flex items-center justify-center space-x-2"
+                          >
+                             <ExternalLink className="w-4 h-4" />
+                             <span>Join Google Meet Briefing</span>
+                          </a>
+                       ) : (
+                          <button 
+                             onClick={() => handleSyncToGoogleCalendar(selectedEvent)}
+                             disabled={isSyncingCalendar[selectedEvent.id]}
+                             className="w-full bg-blue-700 hover:bg-blue-800 text-white py-4 uppercase text-xs font-bold tracking-[0.15em] shadow-xl transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+                          >
+                             {isSyncingCalendar[selectedEvent.id] ? (
+                                <>
+                                   <Loader2 className="w-4 h-4 animate-spin" />
+                                   <span>Syncing to Google...</span>
+                                </>
+                             ) : (
+                                <>
+                                   <Calendar className="w-4 h-4" />
+                                   <span>Sync to Google Calendar</span>
+                                 </>
+                             )}
+                          </button>
+                       )}
                        <p className="text-[9px] text-stone-400 text-center uppercase tracking-widest font-bold">RSVP required for clearance</p>
                     </div>
                  </div>

@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Loader2, Sparkles, ExternalLink, Terminal, Shield, MessageCircle, Info, Zap, Globe, Lock, History, Plus, Menu, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatMessage } from '../types';
-import { getArchieStream } from '../services/geminiService';
+import { auth } from '../services/firebase';
 
 interface ChatSession {
   id: string;
@@ -163,22 +163,32 @@ export const Archie: React.FC<ArchieProps> = ({ isPublic = false }) => {
 
     try {
       const history = messages.map(m => ({ role: m.role, text: m.text }));
-      const stream = await getArchieStream(userMsg.text, isPublic, history);
       
-      let fullResponse = '';
-      let lastGrounding: any[] = [];
-      
-      for await (const chunk of stream) {
-        if (chunk.text) {
-          fullResponse += chunk.text;
-          setStreamingText(fullResponse);
-        }
-        if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
-          const chunks = chunk.candidates[0].groundingMetadata.groundingChunks;
-          lastGrounding = chunks;
-          setGrounding(chunks);
-        }
+      const idToken = await auth.currentUser?.getIdToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (idToken) {
+        headers['Authorization'] = `Bearer ${idToken}`;
       }
+
+      const response = await fetch('/api/gemini/archie', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message: userMsg.text,
+          isPublic,
+          history
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const fullResponse = data.text || '';
+      const lastGrounding = data.groundingChunks || [];
 
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
